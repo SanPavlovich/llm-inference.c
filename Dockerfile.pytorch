@@ -1,0 +1,44 @@
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    git \
+    cuda-nsight-systems-12-4 \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PATH=/usr/local/cuda/bin:$PATH
+
+ENV CONDA_DIR=/opt/conda
+RUN wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniforge.sh && \
+    bash miniforge.sh -b -p $CONDA_DIR && \
+    rm miniforge.sh
+
+ENV PATH=$CONDA_DIR/bin:$PATH
+# ENV PATH=.../envs/torchenv/bin:$PATH: 
+# Это делает torchenv "активным" окружением по умолчанию. 
+# Вам не нужно писать conda activate внутри контейнера. Любая команда python или pip автоматически выполняется в контексте этого окружения.
+
+RUN conda create -n torchenv python=3.10 -y
+
+ENV PATH=$CONDA_DIR/envs/torchenv/bin:$PATH
+ENV CONDA_DEFAULT_ENV=torchenv
+
+RUN pip install --upgrade pip
+
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+RUN pip install numpy ipykernel
+
+RUN python -m ipykernel install --user --name=torchenv
+
+RUN apt-get install -y  && rm -rf /var/lib/apt/lists/*
+
+CMD ["/bin/bash"]
+# docker build -f Dockerfile.pytorch -t ubuntu-torch .
+# docker run --gpus all -it --rm ubuntu-torch
+
+# in container terminal:
+# source activate base  #(this would activate your conda base env)
