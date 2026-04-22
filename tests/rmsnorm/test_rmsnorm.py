@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-
 torch.manual_seed(42)
 
 
@@ -13,6 +12,7 @@ def save_tensor_to_bin(filename: str, tensor: torch.Tensor):
         arr = tensor.detach().cpu().numpy().astype(np.float32).flatten()
         f.write(arr.tobytes())
         print(f"Written {len(arr)} floats to {filename}")
+
 
 def rmsnorm(x, weight, eps):
     rms_value = (tensor_input.pow(2).mean(axis=-1, keepdim=True) + eps).sqrt()

@@ -4,19 +4,16 @@ from transformers.models.llama.modeling_llama import LlamaAttention, LlamaConfig
 from .llama_attention import TransformerConfig, CausalSelfAttention
 
 
-torch.manual_seed(43)
+torch.manual_seed(42)
 
 
 if __name__ == "__main__":
-    module = LlamaAttention()
+    batch_size, seq_len, embed_dim = 2, 4, 8
 
     custom_config = TransformerConfig(n_heads=4, n_kv_head=2, hidden_dim=8, intermediate_dim=32, dropout=0)
     custom_block = CausalSelfAttention(custom_config)
 
-    
-
-    batch_size, seq_len, embed_dim = 2, 4, 8
-
+    module = LlamaAttention()
     tensor_input = torch.randn(batch_size, seq_len, embed_dim)
     print(f"{tensor_input=}")
 

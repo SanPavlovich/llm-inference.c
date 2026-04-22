@@ -1,12 +1,13 @@
 # Llama inference
 
-## layers to implement:
+## features to emplemets:
 
-1) Embedding
-2) RoPE
-3) MultiHeadAttention
-4) RMSNorm
-5) SoftMax
-6) Linear
-
-## tokenizer
+- layers:
+    1) Embedding
+    2) RoPE
+    3) MultiHeadAttention
+    4) RMSNorm
+    5) SoftMax
+    6) Linear
+- tokenizer
+- kv cache
