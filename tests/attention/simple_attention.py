@@ -56,7 +56,7 @@ class SelfAttention(nn.Module):
             
             # При сложении с q_kt будет broadcast значений attention_mask[:, None, None, :]
             # [batch_size, seq_len] --> [batch_size, 1, 1, seq_len] --> [batch_size, hum_heads, head_dim, seq_len]
-            q_kt += attention_mask[:, None, None, :] 
+            q_kt += attention_mask[:, None, None, :]
 
         attn_weights = (q_kt / self.head_dim ** 0.5).softmax(dim=-1) # [batch_size, hum_heads, seq_len, seq_len]
         o = torch.matmul(attn_weights, v) # [batch_size, hum_heads, seq_len, seq_len] @ [batch_size, hum_heads, seq_len, head_dim] --> [batch_size, hum_heads, seq_len, head_dim]

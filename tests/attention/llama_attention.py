@@ -1,8 +1,11 @@
+from pathlib import Path
 from pydantic import BaseModel
 import torch
 from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
+
+from utils import save_tensor_to_bin
 
 
 class TransformerConfig(BaseModel):
@@ -35,7 +38,8 @@ class CausalSelfAttention(nn.Module):
 
         # Init projection layers
         self.q_proj  = nn.Linear(self.config.hidden_dim, self.config.n_head * self.head_dim, bias=False)
-        self.kv_proj = nn.Linear(self.config.hidden_dim, self.config.n_kv_head * self.head_dim * 2, bias=False)
+        self.k_proj = nn.Linear(self.config.hidden_dim, self.config.n_kv_head * self.head_dim, bias=False)
+        self.v_proj = nn.Linear(self.config.hidden_dim, self.config.n_kv_head * self.head_dim, bias=False)
         self.out_proj = nn.Linear(self.config.n_head * self.head_dim, self.config.hidden_dim, bias=False)
 
         self.attn_dropout = nn.Dropout(self.config.dropout)
@@ -75,7 +79,7 @@ class CausalSelfAttention(nn.Module):
         mask = torch.tril(torch.ones(max_seq_len, max_seq_len, dtype=torch.bool))
         return mask.view(1, 1, max_seq_len, max_seq_len)
 
-    def forward(self, x: Tensor, attention_mask: Tensor = None) -> Tensor:
+    def forward(self, x: Tensor, attention_mask: Tensor = None, verbose: bool=False, save_path: Path|None=None) -> Tensor:
         """Apply Self-Attention to input data with respect to pad tokens.
 
         Args:
@@ -86,11 +90,20 @@ class CausalSelfAttention(nn.Module):
         """
         B, L, Z = x.shape
 
-        q = self.q_proj(x).view(B, L, self.config.n_head, self.head_dim).permute(0, 2, 1, 3)
-        kv = self.kv_proj(x).view(B, L, self.config.n_kv_head, 2, self.head_dim)
-        k = kv[:, :, :, 0, :].permute(0, 2, 1, 3)
-        v = kv[:, :, :, 1, :].permute(0, 2, 1, 3)
+        if verbose:
+            print(f"tensor input:\n{x=}")
 
+        if save_path:
+            save_tensor_to_bin(str(save_path / "tensor_input.bin"), x)
+            save_tensor_to_bin(str(save_path / "q_proj.bin"), self.q_proj.weight.data)
+            save_tensor_to_bin(str(save_path / "k_proj.bin"), self.k_proj.weight.data)
+            save_tensor_to_bin(str(save_path / "v_proj.bin"), self.v_proj.weight.data)
+            save_tensor_to_bin(str(save_path / "out_proj.bin"), self.v_proj.weight.data)
+
+        q = self.q_proj(x).view(B, L, self.config.n_head, self.head_dim).permute(0, 2, 1, 3)
+        k = self.k_proj(x).view(B, L, self.config.n_kv_head, self.head_dim).permute(0, 2, 1, 3)
+        v = self.v_proj(x).view(B, L, self.config.n_kv_head, self.head_dim).permute(0, 2, 1, 3)
+        
         if self.q_per_kv > 1:
             k = k.repeat_interleave(self.q_per_kv, dim=1)
             v = v.repeat_interleave(self.q_per_kv, dim=1)
@@ -102,12 +115,19 @@ class CausalSelfAttention(nn.Module):
             cos = freqs.cos().to(q.dtype).view(1, 1, L, -1)
             sin = freqs.sin().to(q.dtype).view(1, 1, L, -1)
 
+            # print(cos, sin)
             half = self.head_dim // 2
             q1, q2 = q[..., :half], q[..., half:]
             k1, k2 = k[..., :half], k[..., half:]
             q = torch.cat([q1 * cos - q2 * sin, q2 * cos + q1 * sin], dim=-1)
             k = torch.cat([k1 * cos - k2 * sin, k2 * cos + k1 * sin], dim=-1)
 
+        if save_path:
+            save_tensor_to_bin(str(save_path / "query.bin"), q)
+            save_tensor_to_bin(str(save_path / "key.bin"), k)
+            save_tensor_to_bin(str(save_path / "value.bin"), v)
+        if verbose:
+            print(f"query:\n{q}\nkey:\n{k}\nvalue:\n{v}")
         
         att = torch.matmul(q, k.transpose(-2, -1)) * self.scale
 
@@ -130,6 +150,23 @@ class CausalSelfAttention(nn.Module):
         att = self.attn_dropout(att)
 
         y = torch.matmul(att, v)
+
+        if save_path:
+            save_tensor_to_bin(str(save_path / "attn_output_4d.bin"), y)
+        if verbose:
+            print(f"attn_output_4d:\n{y}")
+
         y = y.permute(0, 2, 1, 3).contiguous().view(B, L, self.config.n_head * self.head_dim)
+
+        if save_path:
+            save_tensor_to_bin(str(save_path / "attn_output.bin"), y)
+
         y = self.out_proj(y)
+
+        if save_path:
+            save_tensor_to_bin(str(save_path / "tensor_output.bin"), y)
+        
+        if verbose:
+            print(f"tensor output:\n{y=}")
+
         return y

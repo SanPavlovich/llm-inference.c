@@ -1,6 +1,6 @@
 compile:
-	gcc rope.c -o rope -lm
+	gcc attention.c utils.c -o attention -lm
 run:
-	./rope 2 12 128 32
+	./attention 2 12 8 4
 clear:
 	rm rope
