@@ -6,7 +6,7 @@
 
 bool allclose(float* A, float* B, size_t n, float tol) {
     for(int i=0; i < n; i++) {
-        double diff = abs((double)(A[i] - B[i]));
+        double diff = fabs((double)(A[i] - B[i]));
         if(diff > tol) {
             printf("\ndiff: %lf, idx: %d\n", diff, i);
             return false;
@@ -27,10 +27,12 @@ void rmsnorm(
     size_t seq_len, 
     size_t embed_dim,
     float eps,
-    float* weight,
-    float* input,
+    const float* weight,
+    const float* input,
     float* output
 ) {
+    // int * const ptr = &x; // Адрес зафиксирован
+    // const int *ptr = &x; // Данные зафиксированы
     float *curr_input_embed, *curr_output_embed;
     for(int b=0; b < batch_size; b++) {
         for(int s=0; s < seq_len; s++) {
