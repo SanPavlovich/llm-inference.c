@@ -15,6 +15,17 @@ bool allclose(float* A, float* B, size_t n, float tol) {
     return true;
 }
 
+void matmul(float* A, float* B, float* C, size_t m, size_t n, size_t k) {
+    for(int m_idx = 0; m_idx < m; m_idx++) {
+        for(int k_idx = 0; k_idx < k; k_idx++) {
+            float sum = 0;
+            for(int n_idx = 0; n_idx < n; n_idx++)
+                sum += A[m_idx * n + n_idx] * B[n_idx * k + k_idx];
+            C[m_idx * k + k_idx] = sum;
+        }    
+    }
+}
+
 void print(float* array, size_t size) {
     for(int i=0; i < size; i++) {
         printf("%e ", array[i]);

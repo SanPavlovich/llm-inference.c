@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "utils.h"
+#include "rope.h"
 
 
 float dot_product(size_t size, float* array1, float* array2) {
@@ -12,6 +13,7 @@ float dot_product(size_t size, float* array1, float* array2) {
         sum += array1[i] * array2[i];
     return sum;
 }
+
 
 void softmax_1d(
     size_t size,
@@ -32,6 +34,7 @@ void softmax_1d(
     }
 }
 
+
 void create_causal_mask(
     size_t seq_len,
     float* output
@@ -46,6 +49,7 @@ void create_causal_mask(
         }
     }
 }
+
 
 void attention(
     size_t batch_size, size_t num_heads, size_t seq_len, size_t head_dim,
@@ -105,9 +109,27 @@ void attention(
     free(attn_weights);
 }
 
-void llama_attention() {
 
+void llama_attention(
+    size_t batch_size, size_t num_heads, size_t num_kv_heads, size_t seq_len, size_t head_dim,
+    float* cos, float* sin, float* causal_mask,
+    float* w_q, float* w_k, float* w_v, float* w_o,
+    float* input, // shape: [batch_size, seq_len, embed_dim]
+    float* output // shape: [batch_size, seq_len, embed_dim]
+) {
+    int embed_dim = num_heads * head_dim;
+    float* query = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
+    float* key = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
+    float* value = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
+
+    // матричное умножение по головам буду писать так, чтобы оно переводило
+    // input: [batch_size, seq_len, embed_dim] сразу в транспонированную размерность [batch_size, num_heads, seq_len, embed_dim]
+    // Также не забыть про num_kv_heads, там цикл писать еще аккуратнее, так как число kv голов меньше q
+    // далее пользуюсь отлаженной функцией apply_rope(), затем attention()
+    // Аккуратно из размерности [batch_size, num_heads, seq_len, embed_dim] делаю умножение на w_o сразу в размерность 
+    // output: [batch_size, seq_len, embed_dim]. Готовый matmul не нужен тут :(
 }
+
 
 int main(int argc, char *argv[]) {
     size_t batch_size = atoi(argv[1]);

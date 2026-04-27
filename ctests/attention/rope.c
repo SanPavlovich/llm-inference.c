@@ -35,8 +35,8 @@ void print_2d(float* array, size_t nrows, size_t ncols) {
 void rotary_emb(
     size_t seq_len, size_t head_dim,
     float rope_theta,
-    float* cos_output,
-    float* sin_output
+    float* cos_output, // shape: [seq_len, head_dim / 2]
+    float* sin_output  // shape: [seq_len, head_dim / 2]
 ) {
     int half = head_dim / 2;
     float freq;
@@ -51,12 +51,12 @@ void rotary_emb(
 
 void apply_rotary_pos_emb(
     size_t batch_size, size_t num_heads, size_t seq_len, size_t head_dim,
-    float* query_input,
-    float* key_input,
-    const float* cos,
-    const float* sin,
-    float* query_output,
-    float* key_output
+    float* query_input,  // shape: [batch_size, num_heads, seq_len, head_dim]
+    float* key_input,    // shape: [batch_size, num_heads, seq_len, head_dim]
+    const float* cos,    // shape: [seq_len, head_dim / 2]
+    const float* sin,    // shape: [seq_len, head_dim / 2]
+    float* query_output, // shape: [batch_size, num_heads, seq_len, head_dim]
+    float* key_output    // shape: [batch_size, num_heads, seq_len, head_dim]
 ) {
     int half = head_dim / 2;
     float *curr_query_input, *curr_key_input, *curr_query_output, *curr_key_output;

@@ -1,6 +1,7 @@
-#include <stddef.h>
 #ifndef UTILS_H
 #define UTILS_H
+
+#include <stddef.h>
 
 bool allclose(float* A, float* B, size_t n, float tol);
 
