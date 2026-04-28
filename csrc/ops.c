@@ -153,14 +153,14 @@ void create_causal_mask(
 
 void attention(
     size_t batch_size, size_t num_heads, size_t seq_len, size_t head_dim,
-    float* query,       // shape: [batch_size, hum_heads, seq_len, head_dim]
-    float* key,         // shape: [batch_size, hum_heads, seq_len, head_dim]
-    float* value,       // shape: [batch_size, hum_heads, seq_len, head_dim]
-    float* causal_mask, // shape: [seq_len, seq_len]
-    float* output       // shape: [batch_size, hum_heads, seq_len, head_dim]
+    float* query,        // shape: [batch_size, hum_heads, seq_len, head_dim]
+    float* key,          // shape: [batch_size, hum_heads, seq_len, head_dim]
+    float* value,        // shape: [batch_size, hum_heads, seq_len, head_dim]
+    float* q_kt,         // shape: [seq_len, seq_len]
+    float* attn_weights, // shape: [seq_len, seq_len]
+    float* causal_mask,  // shape: [seq_len, seq_len]
+    float* output        // shape: [batch_size, hum_heads, seq_len, head_dim]
 ) {
-    float* q_kt = (float*)malloc(sizeof(float) * seq_len * seq_len);
-    float* attn_weights = (float*)malloc(sizeof(float) * seq_len * seq_len);
     float scale = 1.0f / sqrtf((float)head_dim);
 
     for(int b=0; b < batch_size; b++) {
@@ -204,7 +204,84 @@ void attention(
             }
         }
     }
+}
 
-    free(q_kt);
-    free(attn_weights);
+
+void llama_attention(
+    size_t batch_size, size_t num_heads, size_t num_kv_heads, size_t seq_len, size_t head_dim,
+    float* cos, float* sin, float* causal_mask,
+    float* w_q, float* w_k, float* w_v, float* w_o,
+    float* query, float* key,
+    float* query_with_rope, float* key_with_rope,
+    float* q_kt, float* attn_weights,
+    float* value, 
+    float* attn_output, // shape: [batch_size, hum_heads, seq_len, head_dim]
+    float* input,       // shape: [batch_size, seq_len, embed_dim]
+    float* output       // shape: [batch_size, seq_len, embed_dim]
+) {
+    // The code below performs matrix multiplication and immediately converts the result to its transposed form!
+    // For the key and value it is applied repeat_interleave immediately.
+    // query = (x @ w_q.T).view(batch_size, seq_len, num_heads, head_dim).transope(1, 2);
+    // key = (x @ w_k.T).view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2).repeat_interleave(q_per_kv, dim=1);
+    // value = (x @ w_v.T).view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2).repeat_interleave(q_per_kv, dim=1);
+
+    int embed_dim = num_heads * head_dim;
+    int q_per_kv = num_heads / num_kv_heads;
+
+    for(int bs=0; bs < batch_size; bs++) {
+        for(int s=0; s < seq_len; s++) {
+            float* curr_input_embed = input + bs * seq_len * embed_dim + s * embed_dim;
+            for(int nh=0; nh < num_heads; nh++) {
+                int nh_kv = nh / q_per_kv;
+                for(int hd=0; hd < head_dim; hd++) {
+                    float head_sum_q = 0, head_sum_k = 0, head_sum_v=0;
+                    for(int ed=0; ed < embed_dim; ed++) {
+                        head_sum_q += curr_input_embed[ed] * w_q[(nh * head_dim + hd) * embed_dim + ed];
+                        head_sum_k += curr_input_embed[ed] * w_k[(nh_kv * head_dim + hd) * embed_dim + ed];
+                        head_sum_v += curr_input_embed[ed] * w_v[(nh_kv * head_dim + hd) * embed_dim + ed];
+                    }
+                    int head_offset = bs * num_heads * seq_len * head_dim + nh * seq_len * head_dim + s * head_dim;
+                    float* curr_query_head = query + head_offset; 
+                    float* curr_key_head = key + head_offset;
+                    float* curr_value_head = value + head_offset;
+                    curr_query_head[hd] = head_sum_q;
+                    curr_key_head[hd] = head_sum_k;
+                    curr_value_head[hd] = head_sum_v;
+                }
+            }
+        }
+    }
+
+    apply_rotary_pos_emb(
+        batch_size, num_heads, seq_len, head_dim,
+        query, key,
+        cos, sin,
+        query_with_rope, key_with_rope
+    );
+
+    attention(
+        batch_size, num_heads, seq_len, head_dim,
+        query_with_rope, key_with_rope, value,
+        q_kt, attn_weights,
+        causal_mask,
+        attn_output
+    );
+
+    // output = attn_output.transpose(1, 2).reshape(batch_size, seq_len, embed_dim) @ w_o.T
+    for(int bs=0; bs < batch_size; bs++) {
+        for(int s=0; s < seq_len; s++) {
+            for(int ed=0; ed < embed_dim; ed++) {
+                float embed_sum = 0;
+                for(int nh=0; nh < num_heads; nh++) {
+                    int head_offset = bs * num_heads * seq_len * head_dim + nh * seq_len * head_dim + s * head_dim;
+                    float* curr_input_head = attn_output + head_offset;
+                    for(int hd=0; hd < head_dim; hd++) {
+                        embed_sum += curr_input_head[hd] * w_o[ed * embed_dim + (nh * head_dim + hd)];
+                    }
+                }
+                float* curr_output_embed = output + bs * seq_len * embed_dim + s * embed_dim; 
+                curr_output_embed[ed] = embed_sum;
+            }
+        }
+    }
 }

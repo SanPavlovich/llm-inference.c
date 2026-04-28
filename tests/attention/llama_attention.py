@@ -98,7 +98,7 @@ class CausalSelfAttention(nn.Module):
             save_tensor_to_bin(str(save_path / "q_proj.bin"), self.q_proj.weight.data)
             save_tensor_to_bin(str(save_path / "k_proj.bin"), self.k_proj.weight.data)
             save_tensor_to_bin(str(save_path / "v_proj.bin"), self.v_proj.weight.data)
-            save_tensor_to_bin(str(save_path / "out_proj.bin"), self.v_proj.weight.data)
+            save_tensor_to_bin(str(save_path / "out_proj.bin"), self.out_proj.weight.data)
 
         q = self.q_proj(x).view(B, L, self.config.n_head, self.head_dim).permute(0, 2, 1, 3)
         k = self.k_proj(x).view(B, L, self.config.n_kv_head, self.head_dim).permute(0, 2, 1, 3)
