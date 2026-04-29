@@ -1,10 +1,111 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <stdbool.h>
-#include <string.h>
-#include "utils.h"
-#include "rope.h"
+#include "ops.h"
+
+
+void rmsnorm(
+    size_t batch_size, 
+    size_t seq_len, 
+    size_t embed_dim,
+    float eps,
+    float* weight,
+    float* input,
+    float* output
+) {
+    float *curr_input_embed, *curr_output_embed;
+    for(int b=0; b < batch_size; b++) {
+        for(int s=0; s < seq_len; s++) {
+            curr_input_embed = input   + b * seq_len * embed_dim + s * embed_dim;
+            curr_output_embed = output + b * seq_len * embed_dim + s * embed_dim;
+            float rms=0;
+            for(int e=0; e < embed_dim; e++) {
+                rms += pow(curr_input_embed[e], 2);
+            }
+            rms = sqrt((rms / (float)embed_dim) + eps);
+
+            for(int e=0; e < embed_dim; e++) {
+                curr_output_embed[e] = (curr_input_embed[e] / rms) * weight[e];
+            }
+        }
+    }
+}
+
+
+void rotary_emb(
+    size_t seq_len, size_t head_dim,
+    float rope_theta,
+    float* cos_output,
+    float* sin_output
+) {
+    int half = head_dim / 2;
+    float freq;
+    for(int m=0; m < seq_len; m++) {
+        for(int i=0; i < half; i++) {
+            freq = m * (1 / (pow(rope_theta, 2.0 * i / head_dim)));
+            cos_output[m * half + i] = cos(freq);
+            sin_output[m * half + i] = sin(freq);
+        }
+    }
+}
+
+
+void apply_rotary_pos_emb(
+    size_t batch_size, size_t num_heads, size_t seq_len, size_t head_dim,
+    float* query_input,
+    float* key_input,
+    const float* cos,
+    const float* sin,
+    float* query_output,
+    float* key_output
+) {
+    int half = head_dim / 2;
+    float *curr_query_input, *curr_key_input, *curr_query_output, *curr_key_output;
+
+    for(int b=0; b < batch_size; b++) {
+        for(int nh=0; nh < num_heads; nh++) {
+            int offset_b_nh = (b * num_heads * seq_len * head_dim) + (nh * seq_len * head_dim);
+            curr_query_input = query_input + offset_b_nh;
+            curr_key_input = key_input + offset_b_nh;
+            curr_query_output = query_output + offset_b_nh;
+            curr_key_output = key_output + offset_b_nh;
+
+            for(int s=0; s < seq_len; s++) {
+                // first half loop
+                for(int hd=0; hd < half; hd++) {
+                    int offset_s_hd = s * head_dim + hd;
+                    int offset_freq = s * half + hd;
+                    float q_1 = curr_query_input[offset_s_hd];
+                    float q_2 = curr_query_input[offset_s_hd + half];
+                    float k_1 = curr_key_input[offset_s_hd];
+                    float k_2 = curr_key_input[offset_s_hd + half];
+                    
+                    float q_rope = q_1 * cos[offset_freq] - q_2 * sin[offset_freq];
+                    float k_rope = k_1 * cos[offset_freq] - k_2 * sin[offset_freq];
+
+                    curr_query_output[offset_s_hd] = q_rope;
+                    curr_key_output[offset_s_hd] = k_rope;
+                }
+
+                // second half loop
+                for(int hd=half; hd < head_dim; hd++) {
+                    int offset_s_hd = s * head_dim + hd;
+                    int offset_freq = s * half + hd - half;
+                    float q_1 = curr_query_input[offset_s_hd];
+                    float q_2 = curr_query_input[offset_s_hd - half];
+                    float k_1 = curr_key_input[offset_s_hd];
+                    float k_2 = curr_key_input[offset_s_hd - half];
+                    
+                    float q_rope = q_1 * cos[offset_freq] + q_2 * sin[offset_freq];
+                    float k_rope = k_1 * cos[offset_freq] + k_2 * sin[offset_freq];
+
+                    curr_query_output[offset_s_hd] = q_rope;
+                    curr_key_output[offset_s_hd] = k_rope;
+                }
+            }
+        }
+    }
+}
 
 
 float dot_product(size_t size, float* array1, float* array2) {
@@ -184,129 +285,4 @@ void llama_attention(
             }
         }
     }
-}
-
-
-int main(int argc, char *argv[]) {
-    size_t batch_size = atoi(argv[1]);
-    size_t seq_len = atoi(argv[2]);
-    size_t embed_dim = atoi(argv[3]);
-    size_t num_heads = atoi(argv[4]);
-    size_t num_kv_heads = num_heads / 2;
-    if (argc < 5) {
-        fprintf(stderr, "Usage: %s <batch> <seq> <dim> <head>\n", argv[0]);
-        return 1;
-    }
-
-    // indexing: total elements: batch_size * seq_len * embed_dim
-    char fn_input[512], fn_w_q[512], fn_w_k[512], fn_w_v[512], fn_w_o[512], fn_output[512], fn_attn_output[512];
-    snprintf(fn_input, sizeof(fn_input), "../../data/attention/bs_%zu_sl_%zu_ed_%zu_nh_%zu/tensor_input.bin", batch_size, seq_len, embed_dim, num_heads);
-    snprintf(fn_w_q, sizeof(fn_w_q), "../../data/attention/bs_%zu_sl_%zu_ed_%zu_nh_%zu/q_proj.bin", batch_size, seq_len, embed_dim, num_heads);
-    snprintf(fn_w_k, sizeof(fn_w_k), "../../data/attention/bs_%zu_sl_%zu_ed_%zu_nh_%zu/k_proj.bin", batch_size, seq_len, embed_dim, num_heads);
-    snprintf(fn_w_v, sizeof(fn_w_v), "../../data/attention/bs_%zu_sl_%zu_ed_%zu_nh_%zu/v_proj.bin", batch_size, seq_len, embed_dim, num_heads);
-    snprintf(fn_w_o, sizeof(fn_w_o), "../../data/attention/bs_%zu_sl_%zu_ed_%zu_nh_%zu/out_proj.bin", batch_size, seq_len, embed_dim, num_heads);
-    snprintf(fn_output, sizeof(fn_output), "../../data/attention/bs_%zu_sl_%zu_ed_%zu_nh_%zu/tensor_output.bin", batch_size, seq_len, embed_dim, num_heads);
-
-    FILE *fp_input = fopen(fn_input, "rb");
-    FILE *fp_w_q = fopen(fn_w_q, "rb");
-    FILE *fp_w_k = fopen(fn_w_k, "rb");
-    FILE *fp_w_v = fopen(fn_w_v, "rb");
-    FILE *fp_w_o = fopen(fn_w_o, "rb");
-    FILE *fp_output = fopen(fn_output, "rb");
-    if (!fp_input || !fp_w_q || !fp_w_k || !fp_w_v || !fp_w_o || !fp_output) {
-        fprintf(stderr, "ERROR: Cannot open one of the files\n");
-        return 1;
-    }
-
-    int head_dim = embed_dim / num_heads;
-    size_t total_elements = batch_size * num_heads * seq_len * head_dim;
-    int freq_elements = seq_len * head_dim / 2;
-    printf("batch_size: %ld, num_heads: %ld, seq_len: %ld, head_dim: %d\n", batch_size, num_heads, seq_len, head_dim);
-
-    size_t weights_size_q = sizeof(float) * embed_dim * head_dim * num_heads;
-    size_t weights_size_kv = sizeof(float) * embed_dim * head_dim * num_kv_heads;
-    size_t feqs_size = sizeof(float) * freq_elements;
-    size_t hidden_size = sizeof(float) * total_elements;
-
-    float* w_q = (float*)malloc(weights_size_q);
-    float* w_k = (float*)malloc(weights_size_kv);
-    float* w_v = (float*)malloc(weights_size_kv);
-    float* w_o = (float*)malloc(weights_size_q);
-
-    float rope_theta = 10000.0;
-    float* cos = (float*)malloc(feqs_size);
-    float* sin = (float*)malloc(feqs_size);
-    float* causal_mask = (float*)malloc(sizeof(float) * seq_len * seq_len);
-    float* query = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
-    float* key = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
-    float* query_with_rope = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
-    float* key_with_rope = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
-    float* q_kt = (float*)malloc(sizeof(float) * seq_len * seq_len);
-    float* attn_weights = (float*)malloc(sizeof(float) * seq_len * seq_len);
-    float* value = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
-    float* attn_output = (float*)calloc(total_elements, sizeof(float)); // calloc ==> init array with zeros 
-    float* input = (float*)malloc(hidden_size);
-    float* output = (float*)malloc(hidden_size);
-    float* output_test = (float*)malloc(hidden_size);
-
-    fread(input, sizeof(float), total_elements, fp_input);
-    fclose(fp_input);
-    fread(w_q, sizeof(float), total_elements, fp_w_q);
-    fclose(fp_w_q);
-    fread(w_k, sizeof(float), total_elements, fp_w_k);
-    fclose(fp_w_k);
-    fread(w_v, sizeof(float), total_elements, fp_w_v);
-    fclose(fp_w_v);
-    fread(w_o, sizeof(float), total_elements, fp_w_o);
-    fclose(fp_w_o);
-    fread(output, sizeof(float), total_elements, fp_output);
-    fclose(fp_output);
-
-    create_causal_mask(seq_len, causal_mask);
-    rotary_emb(seq_len, head_dim, rope_theta, cos, sin);
-    llama_attention(
-        batch_size, num_heads, num_kv_heads, seq_len, head_dim,
-        cos, sin, causal_mask,
-        w_q, w_k, w_v, w_o,
-        query, key,
-        query_with_rope, key_with_rope,
-        q_kt, attn_weights,
-        value, 
-        attn_output,
-        input,
-        output_test
-    );
-
-    printf("w_o:\n");
-    print_2d(w_o, embed_dim, num_heads * head_dim);
-    printf("\n");
-    printf("input:\n");
-    print(input, total_elements);
-    printf("\n");
-    printf("output:\n");
-    print(output, total_elements);
-    printf("\n");
-    printf("output test:\n");
-    print(output_test, total_elements);
-    printf("\n");
-
-    bool is_close_output = allclose(output, output_test, total_elements, 1e-6);
-    printf("attn output is_close: %d\n", is_close_output);
-
-    free(w_q);
-    free(w_k);
-    free(w_v);
-    free(w_o);
-    free(cos);
-    free(sin);
-    free(causal_mask);
-    free(query);
-    free(key);
-    free(query_with_rope);
-    free(key_with_rope);
-    free(value);
-    free(attn_output);
-    free(input);
-    free(output);
-    free(output_test);
 }
