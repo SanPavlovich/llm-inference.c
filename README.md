@@ -29,7 +29,9 @@ Modern ML frameworks (PyTorch, JAX, TensorFlow) are black boxes of comfort. This
 - ✅ **LlamaAttention** — integrate RoPE application directly into attention
 - ✅ **Linear (MatMul)** — naive triple-loop, verified against `torch.nn.Linear`
 - ✅ **SwiGLU** — `silu(gate) * up` followed by `down_proj`, verified in `swiglu.c`
-- 🟡 **LlamaDecoderLayer** — RMSNorm → Attention → Residual → RMSNorm → FFN → Residual
+- ✅ **LlamaDecoderLayer** — RMSNorm → Attention → Residual → RMSNorm → FFN → Residual
 - 🟡 **Embedding** — RMSNorm → Attention → Residual → RMSNorm → FFN → Residual
 - 🟡 **LlamaForCausalLM** - forward/generate
 - 🟡 **tokenizer**
+- 🟡 **KV Cache**
+- 🟡 **MultiQueryAttention**
