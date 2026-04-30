@@ -22,6 +22,7 @@ typedef struct {
     float* down_proj;
 } LlamaMLP;
 
+
 typedef struct {
     float* w_q;
     float* w_k;
@@ -29,9 +30,22 @@ typedef struct {
     float* w_o;
 } LlamaAttention;
 
+
 typedef struct {
     float* weight;
 } RMSNorm;
+
+
+typedef struct {
+    float* weight;
+} Embedding;
+
+
+typedef struct {
+    float* weight;
+    float* bias
+} Linear;
+
 
 typedef struct {
     LlamaMLP mlp;
@@ -40,9 +54,18 @@ typedef struct {
     RMSNorm rms_ffn;
 } LlamaDecoderLayer;
 
+
+typedef struct {
+    Embedding emd;
+    LlamaDecoderLayer* layers;
+    Linear lm_head;
+} LlamaModel;
+
+
 typedef struct {
     float* output;
 } RMSNormActivation;
+
 
 typedef struct {
     float* gate;
@@ -51,6 +74,7 @@ typedef struct {
     float* gate_mul_up;
     float* output;
 } LlamaMLPActivation;
+
 
 typedef struct {
     float* query;
@@ -63,6 +87,7 @@ typedef struct {
     float* attn_output;
     float* output;
 } LlamaAttentionActivation;
+
 
 typedef struct {
     LlamaAttentionActivation self_attn;

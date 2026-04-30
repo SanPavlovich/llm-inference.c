@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "ops.h"
+#include "llm_struct.h"
 
 
 void rmsnorm(
@@ -285,4 +285,126 @@ void llama_attention(
             }
         }
     }
+}
+
+
+void silu(
+    size_t size,
+    float* input,
+    float* output
+) {
+    for(int i=0; i < size; i++) {
+        float x = input[i];
+        output[i] = x / (1.0f + expf(-x));
+    }
+}
+
+
+void linear(
+    size_t in_features,
+    size_t out_features,
+    float* weight,
+    float* input,
+    float* output
+) {
+    // output = x @ w.T
+    for(int i=0; i < out_features; i++) {
+        float dot_sum = 0.0f;
+        for(int j=0; j < in_features; j++) {
+            dot_sum += input[j] * weight[i * in_features + j];
+        }
+        output[i] = dot_sum;
+    }
+}
+
+
+void swiglu(
+    size_t batch_size,
+    size_t seq_len,
+    size_t embed_dim,
+    size_t intermediate_size,
+    float* weight_gate_proj,
+    float* weight_up_proj,
+    float* weight_down_proj,
+    float* gate,
+    float* up,
+    float* gate_silu,
+    float* gate_mul_up,
+    float* input,
+    float* output
+) {
+    // pytorch: output = self.down_proj(F.silu(self.gate_proj(input)) * self.up_proj(input))
+    // numpy:   output = (silu(x @ weight_gate_proj.T) * (x @ weight_up_proj.T)) @ weight_down_proj.T
+    for(int b=0; b < batch_size; b++) {
+        for(int s=0; s < seq_len; s++) {
+            int offset = b * seq_len * embed_dim + s * embed_dim;
+            float* curr_input_embed = input + offset;
+            float* curr_output_embed = output + offset;
+
+            linear(embed_dim, intermediate_size, weight_gate_proj, curr_input_embed, gate);
+            linear(embed_dim, intermediate_size, weight_up_proj, curr_input_embed, up);
+            silu(intermediate_size, gate, gate_silu);
+            for(int i=0; i < intermediate_size; i++) {
+                gate_mul_up[i] = gate_silu[i] * up[i];
+            }
+            linear(intermediate_size, embed_dim, weight_down_proj, gate_mul_up, curr_output_embed);
+        }
+    }
+}
+
+
+void residual(
+    size_t size,
+    float* input,
+    float* residual
+) {
+    for(int i=0; i < size; i++) {
+        input[i] += residual[i];
+    }
+}
+
+
+void llama_decoder_forward(
+    LlamaConfig* config,
+    LlamaDecoderLayer* params,
+    LlamaDecoderActivation* activation,
+    float* cos,
+    float* sin,
+    float* causal_mask,
+    float* input
+) {
+    size_t total_elements = config->batch_size * config->seq_len * config->embed_dim;
+    rmsnorm(
+        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        params->rms_attn.weight,
+        input,
+        activation->rms_attn.output
+    );
+    llama_attention(
+        config->batch_size, config->num_heads, config->num_kv_heads, config->seq_len, config->head_dim,
+        cos, sin, causal_mask, 
+        params->self_attn.w_q, params->self_attn.w_k, params->self_attn.w_v, params->self_attn.w_o,
+        activation->self_attn.query, activation->self_attn.key, 
+        activation->self_attn.query_rope, activation->self_attn.key_rope,
+        activation->self_attn.q_kt, activation->self_attn.attn_weights,
+        activation->self_attn.value,
+        activation->self_attn.attn_output,
+        activation->rms_attn.output,    // input
+        activation->self_attn.output    // output
+    );
+    residual(total_elements, input, activation->self_attn.output);
+    rmsnorm(
+        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        params->rms_ffn.weight,
+        input,
+        activation->rms_ffn.output
+    );
+    swiglu(
+        config->batch_size, config->seq_len, config->embed_dim, config->intermediate_size,
+        params->mlp.gate_proj, params->mlp.up_proj, params->mlp.down_proj,
+        activation->mlp.gate, activation->mlp.up, activation->mlp.gate_silu, activation->mlp.gate_mul_up,
+        activation->rms_ffn.output,     // input
+        activation->mlp.output          // output
+    );
+    residual(total_elements, input, activation->mlp.output);
 }
