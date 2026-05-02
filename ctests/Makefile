@@ -1,8 +1,19 @@
+CC = gcc
+# CFLAGS = -Wall -Wextra -O2
+LDFLAGS = -lm
+TARGET = test_forward
+SRCS = test_forward.c utils.c ops.c
+# ARGS = 2 12 8 4
+ARGS = --model-path /root/llm-inference/data/forward/bs_2_sl_12_ed_768_nh_12
+
 compile:
-	gcc test_decoder.c utils.c ops.c -o test_decoder -lm
+	$(CC) $(CFLAGS) $(SRCS) -o $(TARGET) $(LDFLAGS)
+
 compile_sanitize:
-	gcc -fsanitize=address -g test_decoder.c utils.c ops.c -o test_decoder -lm
+	$(CC) -fsanitize=address -g $(SRCS) -o $(TARGET) $(LDFLAGS)
+
 run:
-	./test_decoder 2 12 8 4
+	./$(TARGET) $(ARGS)
+
 clear:
-	rm rope
+	rm -f $(TARGET)

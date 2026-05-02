@@ -300,12 +300,12 @@ void silu(
 }
 
 
-void linear(
+void linear_forward(
     size_t in_features,
     size_t out_features,
-    float* weight,
-    float* input,
-    float* output
+    float* weight,  // [in_features, out_features]
+    float* input,   // [in_features]
+    float* output   // [out_features]
 ) {
     // output = x @ w.T
     for(int i=0; i < out_features; i++) {
@@ -341,13 +341,13 @@ void swiglu(
             float* curr_input_embed = input + offset;
             float* curr_output_embed = output + offset;
 
-            linear(embed_dim, intermediate_size, weight_gate_proj, curr_input_embed, gate);
-            linear(embed_dim, intermediate_size, weight_up_proj, curr_input_embed, up);
+            linear_forward(embed_dim, intermediate_size, weight_gate_proj, curr_input_embed, gate);
+            linear_forward(embed_dim, intermediate_size, weight_up_proj, curr_input_embed, up);
             silu(intermediate_size, gate, gate_silu);
             for(int i=0; i < intermediate_size; i++) {
                 gate_mul_up[i] = gate_silu[i] * up[i];
             }
-            linear(intermediate_size, embed_dim, weight_down_proj, gate_mul_up, curr_output_embed);
+            linear_forward(intermediate_size, embed_dim, weight_down_proj, gate_mul_up, curr_output_embed);
         }
     }
 }
@@ -375,7 +375,7 @@ void llama_decoder_forward(
 ) {
     size_t total_elements = config->batch_size * config->seq_len * config->embed_dim;
     rmsnorm(
-        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        config->batch_size, config->seq_len, config->embed_dim, config->rms_eps,
         params->rms_attn.weight,
         input,
         activation->rms_attn.output
@@ -394,7 +394,7 @@ void llama_decoder_forward(
     );
     residual(total_elements, input, activation->self_attn.output);
     rmsnorm(
-        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        config->batch_size, config->seq_len, config->embed_dim, config->rms_eps,
         params->rms_ffn.weight,
         input,
         activation->rms_ffn.output

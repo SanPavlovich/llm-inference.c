@@ -20,7 +20,7 @@ void silu(
 }
 
 
-void linear(
+void linear_forward(
     size_t in_features,
     size_t out_features,
     float* weight,
@@ -60,13 +60,13 @@ void swiglu(
             float* curr_input_embed = input + offset;
             float* curr_output_embed = output + offset;
 
-            linear(embed_dim, intermediate_size, weight_gate_proj, curr_input_embed, gate);
-            linear(embed_dim, intermediate_size, weight_up_proj, curr_input_embed, up);
+            linear_forward(embed_dim, intermediate_size, weight_gate_proj, curr_input_embed, gate);
+            linear_forward(embed_dim, intermediate_size, weight_up_proj, curr_input_embed, up);
             silu(intermediate_size, gate, gate_silu);
             for(int i=0; i < intermediate_size; i++) {
                 gate_mul_up[i] = gate_silu[i] * up[i];
             }
-            linear(intermediate_size, embed_dim, weight_down_proj, gate_mul_up, curr_output_embed);
+            linear_forward(intermediate_size, embed_dim, weight_down_proj, gate_mul_up, curr_output_embed);
         }
     }
 }
@@ -94,7 +94,7 @@ void llama_decoder_forward(
 ) {
     size_t total_elements = config->batch_size * config->seq_len * config->embed_dim;
     rmsnorm(
-        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        config->batch_size, config->seq_len, config->embed_dim, config->rms_eps,
         params->rms_attn.weight,
         input,
         activation->rms_attn.output
@@ -113,7 +113,7 @@ void llama_decoder_forward(
     );
     residual(total_elements, input, activation->self_attn.output);
     rmsnorm(
-        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        config->batch_size, config->seq_len, config->embed_dim, config->rms_eps,
         params->rms_ffn.weight,
         input,
         activation->rms_ffn.output
@@ -144,11 +144,11 @@ int main(int argc, char *argv[]) {
     config.head_dim = embed_dim / num_heads;
     config.intermediate_size = embed_dim * 2;
     config.rope_theta = 10000.0f;
-    config.eps = 1e-6;
+    config.rms_eps = 1e-6;
 
     size_t total_elements = batch_size * seq_len * embed_dim;
     size_t hidden_size = sizeof(float) * total_elements;
-    size_t freq_elements = seq_len * config.head_dim / 2;;
+    size_t freq_elements = seq_len * config.head_dim / 2;
     size_t feqs_size = sizeof(float) * freq_elements;
 
     // memory allocation for input/output
@@ -176,6 +176,7 @@ int main(int argc, char *argv[]) {
     activation.mlp.up = (float*)malloc(sizeof(float) * config.intermediate_size);
     activation.mlp.gate_silu = (float*)malloc(sizeof(float) * config.intermediate_size);
     activation.mlp.gate_mul_up = (float*)malloc(sizeof(float) * config.intermediate_size);
+    activation.mlp.output = (float*)malloc(sizeof(float) * total_elements);
 
     activation.self_attn.query = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);
     activation.self_attn.key = (float*)malloc(sizeof(float) * batch_size * seq_len * embed_dim);

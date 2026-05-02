@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "llm_struct.h"
+
 
 void rmsnorm(
     size_t batch_size, 
@@ -45,6 +47,15 @@ void softmax_1d(
 );
 
 
+void linear_forward(
+    size_t in_features,
+    size_t out_features,
+    float* weight,
+    float* input,
+    float* output
+);
+
+
 void create_causal_mask(
     size_t seq_len,
     float* output
@@ -74,6 +85,17 @@ void llama_attention(
     float* attn_output, // shape: [batch_size, hum_heads, seq_len, head_dim]
     float* input,       // shape: [batch_size, seq_len, embed_dim]
     float* output       // shape: [batch_size, seq_len, embed_dim]
+);
+
+
+void llama_decoder_forward(
+    LlamaConfig* config,
+    LlamaDecoderLayer* params,
+    LlamaDecoderActivation* activation,
+    float* cos,
+    float* sin,
+    float* causal_mask,
+    float* input
 );
 
 #endif

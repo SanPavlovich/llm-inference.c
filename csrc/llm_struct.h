@@ -11,6 +11,8 @@ typedef struct {
     size_t num_kv_heads;
     size_t head_dim;
     size_t intermediate_size;
+    size_t vocab_size;
+    size_t num_hidden_layers;
     float rope_theta;
     float eps;
 } LlamaConfig;

@@ -1,0 +1,114 @@
+batch_size=2, seq_len=12, embed_dim=384, intermediate_dim=1024, num_heads=6, vocab_size=1024, num_layers=6
+model parameters count: 10_523_520
+input_ids.shape=torch.Size([2, 12])
+input_ids=tensor([[ 972,  596,   47,  518,   51,  550,  248,  221,  685,  801,  353,  830],
+        [ 928,  157,  307,  943,  651,  491,   37,  328, 1019,  685,  569,   36]])
+
+inputs_embeds.shape=torch.Size([2, 12, 384])
+inputs_embeds=tensor([[[ 0.0335,  0.0093, -0.0738,  ..., -0.0084, -0.0096,  0.0170],
+         [-0.0270, -0.0005,  0.0097,  ...,  0.0047, -0.0047,  0.0602],
+         [ 0.0087,  0.0109,  0.0040,  ..., -0.0222,  0.0228,  0.0246],
+         ...,
+         [-0.0129, -0.0011, -0.0065,  ...,  0.0045,  0.0234,  0.0130],
+         [-0.0366,  0.0066,  0.0025,  ..., -0.0037,  0.0391, -0.0502],
+         [ 0.0025, -0.0160,  0.0021,  ...,  0.0268,  0.0160, -0.0157]],
+
+        [[-0.0261, -0.0175, -0.0308,  ...,  0.0159, -0.0079, -0.0226],
+         [ 0.0428, -0.0105,  0.0145,  ..., -0.0204, -0.0016, -0.0341],
+         [-0.0346, -0.0016,  0.0016,  ..., -0.0070, -0.0080, -0.0231],
+         ...,
+         [-0.0072,  0.0152, -0.0224,  ...,  0.0050,  0.0080,  0.0081],
+         [-0.0167,  0.0053,  0.0088,  ...,  0.0012, -0.0147, -0.0054],
+         [ 0.0261, -0.0313,  0.0088,  ..., -0.0200,  0.0404, -0.0464]]],
+       grad_fn=<EmbeddingBackward0>)
+
+output.logits.shape=torch.Size([2, 12, 1024])
+output.logits=tensor([[[ 3.8967e-01,  1.6165e-01,  2.3002e-01,  ..., -1.1856e-01,
+          -2.2239e-01, -1.9410e-01],
+         [ 8.0441e-02,  1.3112e-01,  1.3141e-02,  ..., -5.0597e-01,
+          -3.3873e-02, -2.0271e-01],
+         [ 3.3418e-02,  2.0874e-01, -1.4025e-01,  ..., -3.6976e-01,
+           9.7417e-02, -1.7454e-01],
+         ...,
+         [ 3.2509e-02,  1.1329e-01, -1.5689e-01,  ..., -2.3675e-01,
+          -2.7823e-02,  2.0919e-01],
+         [-1.7560e-01,  1.3750e-01, -2.7715e-01,  ..., -1.7410e-01,
+          -1.7202e-02,  1.6194e-01],
+         [-2.1911e-01,  1.7126e-01, -2.3105e-01,  ..., -6.4215e-02,
+          -1.1375e-01,  1.9746e-01]],
+
+        [[-5.4574e-02,  5.2020e-01, -1.2785e-02,  ...,  3.2058e-01,
+           5.3113e-02,  2.8058e-01],
+         [ 5.4287e-02, -2.2514e-01, -4.6970e-01,  ...,  5.1836e-02,
+           3.7890e-01,  5.4854e-01],
+         [-8.6475e-04, -5.3991e-01, -6.3262e-01,  ...,  3.4876e-02,
+           7.5134e-01,  3.5853e-01],
+         ...,
+         [ 1.1861e-01,  1.7967e-01, -6.6390e-01,  ...,  9.8298e-02,
+           5.9204e-01,  8.9806e-01],
+         [ 1.6143e-02,  2.0072e-01, -6.7951e-01,  ...,  1.7240e-01,
+           5.6966e-01,  9.6109e-01],
+         [-1.0572e-01,  3.6646e-01, -6.1394e-01,  ...,  8.7187e-02,
+           6.2179e-01,  1.0086e+00]]], grad_fn=<UnsafeViewBackward0>)
+
+Written 24 floats to /root/llm-inference/data/forward/bs_2_sl_12_ed_384_nh_6/tensor_input.bin
+Written 9216 floats to /root/llm-inference/data/forward/bs_2_sl_12_ed_384_nh_6/inputs_embeds.bin
+Written 24576 floats to /root/llm-inference/data/forward/bs_2_sl_12_ed_384_nh_6/tensor_output.bin
+model.embed_tokens.weight (1024, 384)
+model.layers.0.self_attn.q_proj.weight (384, 384)
+model.layers.0.self_attn.k_proj.weight (192, 384)
+model.layers.0.self_attn.v_proj.weight (192, 384)
+model.layers.0.self_attn.o_proj.weight (384, 384)
+model.layers.0.mlp.gate_proj.weight (1024, 384)
+model.layers.0.mlp.up_proj.weight (1024, 384)
+model.layers.0.mlp.down_proj.weight (384, 1024)
+model.layers.0.input_layernorm.weight (384,)
+model.layers.0.post_attention_layernorm.weight (384,)
+model.layers.1.self_attn.q_proj.weight (384, 384)
+model.layers.1.self_attn.k_proj.weight (192, 384)
+model.layers.1.self_attn.v_proj.weight (192, 384)
+model.layers.1.self_attn.o_proj.weight (384, 384)
+model.layers.1.mlp.gate_proj.weight (1024, 384)
+model.layers.1.mlp.up_proj.weight (1024, 384)
+model.layers.1.mlp.down_proj.weight (384, 1024)
+model.layers.1.input_layernorm.weight (384,)
+model.layers.1.post_attention_layernorm.weight (384,)
+model.layers.2.self_attn.q_proj.weight (384, 384)
+model.layers.2.self_attn.k_proj.weight (192, 384)
+model.layers.2.self_attn.v_proj.weight (192, 384)
+model.layers.2.self_attn.o_proj.weight (384, 384)
+model.layers.2.mlp.gate_proj.weight (1024, 384)
+model.layers.2.mlp.up_proj.weight (1024, 384)
+model.layers.2.mlp.down_proj.weight (384, 1024)
+model.layers.2.input_layernorm.weight (384,)
+model.layers.2.post_attention_layernorm.weight (384,)
+model.layers.3.self_attn.q_proj.weight (384, 384)
+model.layers.3.self_attn.k_proj.weight (192, 384)
+model.layers.3.self_attn.v_proj.weight (192, 384)
+model.layers.3.self_attn.o_proj.weight (384, 384)
+model.layers.3.mlp.gate_proj.weight (1024, 384)
+model.layers.3.mlp.up_proj.weight (1024, 384)
+model.layers.3.mlp.down_proj.weight (384, 1024)
+model.layers.3.input_layernorm.weight (384,)
+model.layers.3.post_attention_layernorm.weight (384,)
+model.layers.4.self_attn.q_proj.weight (384, 384)
+model.layers.4.self_attn.k_proj.weight (192, 384)
+model.layers.4.self_attn.v_proj.weight (192, 384)
+model.layers.4.self_attn.o_proj.weight (384, 384)
+model.layers.4.mlp.gate_proj.weight (1024, 384)
+model.layers.4.mlp.up_proj.weight (1024, 384)
+model.layers.4.mlp.down_proj.weight (384, 1024)
+model.layers.4.input_layernorm.weight (384,)
+model.layers.4.post_attention_layernorm.weight (384,)
+model.layers.5.self_attn.q_proj.weight (384, 384)
+model.layers.5.self_attn.k_proj.weight (192, 384)
+model.layers.5.self_attn.v_proj.weight (192, 384)
+model.layers.5.self_attn.o_proj.weight (384, 384)
+model.layers.5.mlp.gate_proj.weight (1024, 384)
+model.layers.5.mlp.up_proj.weight (1024, 384)
+model.layers.5.mlp.down_proj.weight (384, 1024)
+model.layers.5.input_layernorm.weight (384,)
+model.layers.5.post_attention_layernorm.weight (384,)
+model.norm.weight (384,)
+lm_head.weight (1024, 384)
+Written 10523520 floats to /root/llm-inference/data/forward/bs_2_sl_12_ed_384_nh_6/model.bin

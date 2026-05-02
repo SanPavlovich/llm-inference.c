@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include "utils.h"
 
 bool allclose(float* A, float* B, size_t n, float tol) {
@@ -29,6 +30,13 @@ void matmul(float* A, float* B, float* C, size_t m, size_t n, size_t k) {
 void print(float* array, size_t size) {
     for(int i=0; i < size; i++) {
         printf("%e ", array[i]);
+    }
+    printf("\n");
+}
+
+void print_int64(int64_t* array, size_t size) {
+    for(int i=0; i < size; i++) {
+        printf("%ld ", array[i]);
     }
     printf("\n");
 }

@@ -20,6 +20,28 @@ const int *ptr = &x; // Данные зафиксированы
 *(ptr + 1)); // (сдвиг на 1 * sizeof(float))
 ```
 
+array 2d:
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    int rows = 3, cols = 4;
+
+    // 1. Allocate the array of pointers (size = rows * size of one pointer)
+    int **arr = (int **)malloc(rows * sizeof(int *));
+    if (arr == NULL) return 1; // Always check for allocation failure
+
+    // 2. Allocate each individual sub-array (the "rows")
+    for (int i = 0; i < rows; i++) {
+        arr[i] = (int *)malloc(cols * sizeof(int));
+        if (arr[i] == NULL) return 1;
+    }
+    return 0;
+}
+```
+
 **math.h, INFINITY:**
 
 ```c

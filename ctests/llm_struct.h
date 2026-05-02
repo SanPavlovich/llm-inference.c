@@ -11,8 +11,10 @@ typedef struct {
     size_t num_kv_heads;
     size_t head_dim;
     size_t intermediate_size;
+    size_t vocab_size;
+    size_t num_hidden_layers;
     float rope_theta;
-    float eps;
+    float rms_eps;
 } LlamaConfig;
 
 
@@ -43,7 +45,6 @@ typedef struct {
 
 typedef struct {
     float* weight;
-    float* bias
 } Linear;
 
 
@@ -56,8 +57,9 @@ typedef struct {
 
 
 typedef struct {
-    Embedding emd;
+    Embedding embed_tokens;
     LlamaDecoderLayer* layers;
+    RMSNorm norm;
     Linear lm_head;
 } LlamaModel;
 
@@ -95,5 +97,23 @@ typedef struct {
     RMSNormActivation rms_attn;
     RMSNormActivation rms_ffn;
 } LlamaDecoderActivation;
+
+
+typedef struct {
+    float* output;
+} EmbeddingActivation;
+
+
+typedef struct {
+    float* output;
+} LinearActivation;
+
+
+typedef struct {
+    EmbeddingActivation embed_tokens;
+    LlamaDecoderActivation decoder;
+    RMSNormActivation norm;
+    LinearActivation lm_head;
+} LlamaModelActivation;
 
 #endif
