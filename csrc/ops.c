@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdint.h>
 #include "llm_struct.h"
 
 
@@ -375,7 +376,7 @@ void llama_decoder_forward(
 ) {
     size_t total_elements = config->batch_size * config->seq_len * config->embed_dim;
     rmsnorm(
-        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        config->batch_size, config->seq_len, config->embed_dim, config->rms_eps,
         params->rms_attn.weight,
         input,
         activation->rms_attn.output
@@ -394,7 +395,7 @@ void llama_decoder_forward(
     );
     residual(total_elements, input, activation->self_attn.output);
     rmsnorm(
-        config->batch_size, config->seq_len, config->embed_dim, config->eps,
+        config->batch_size, config->seq_len, config->embed_dim, config->rms_eps,
         params->rms_ffn.weight,
         input,
         activation->rms_ffn.output
@@ -407,4 +408,91 @@ void llama_decoder_forward(
         activation->mlp.output          // output
     );
     residual(total_elements, input, activation->mlp.output);
+}
+
+
+void embedding_forward(
+    size_t batch_size,
+    size_t seq_len,
+    size_t embed_dim,
+    size_t vocab_size,
+    float* weight,
+    int64_t* input,
+    float* output
+) {
+    for(int b=0; b < batch_size; b++) {
+        for(int s=0; s < seq_len; s++) {
+            int64_t token_id = input[b * seq_len + s];
+            if (token_id < 0 || token_id >= vocab_size) {
+                printf("Invalid token_id: %ld\n", token_id);
+                exit(1);
+            }
+            float* src = weight + token_id * embed_dim;
+            float* dst = output + b * seq_len * embed_dim + s * embed_dim;
+            memcpy(dst, src, embed_dim * sizeof(float));
+        }
+    }
+}
+
+
+void llama_forward(
+    LlamaConfig* config,
+    LlamaModel* model,
+    LlamaModelActivation* activation,
+    int64_t* input
+) {
+    size_t freqs_size = config->seq_len * config->head_dim / 2;
+    size_t hidden_size = config->batch_size * config->seq_len * config->embed_dim;
+    
+    float* cos = (float*)malloc(sizeof(float) * freqs_size);
+    float* sin = (float*)malloc(sizeof(float) * freqs_size);
+    float* causal_mask = (float*)malloc(sizeof(float) * config->seq_len * config->seq_len);
+
+    embedding_forward(
+        config->batch_size, config->seq_len, config->embed_dim, config->vocab_size,
+        model->embed_tokens.weight,
+        input,
+        activation->embed_tokens.output
+    );
+
+    create_causal_mask(config->seq_len, causal_mask);
+    rotary_emb(config->seq_len, config->head_dim, config->rope_theta, cos, sin);
+
+    // decoder layers
+    for(int l=0; l < config->num_hidden_layers; l++) {
+        llama_decoder_forward(
+            config, &model->layers[l], &activation->decoder, 
+            cos, sin, causal_mask, 
+            activation->embed_tokens.output // inplace forward
+        );
+        memset(activation->decoder.self_attn.attn_output, 0, hidden_size * sizeof(float));
+    }
+
+    // final RMSNorm + lm_head
+    rmsnorm(
+        config->batch_size, config->seq_len, config->embed_dim, config->rms_eps,
+        model->norm.weight,
+        activation->embed_tokens.output,
+        activation->norm.output
+    );
+
+    for(int b=0; b < config->batch_size; b++) {
+        for(int s=0; s < config->seq_len; s++) {
+            int embed_offset = b * config->seq_len * config->embed_dim + s * config->embed_dim;
+            int logit_offset = b * config->seq_len * config->vocab_size + s * config->vocab_size;
+            float* curr_input_embed = activation->norm.output + embed_offset;
+            float* curr_output_logit = activation->lm_head.output + logit_offset;
+
+            linear_forward(
+                config->embed_dim, config->vocab_size,
+                model->lm_head.weight,
+                curr_input_embed,    // input
+                curr_output_logit    // output
+            );
+        }
+    }
+
+    free(cos);
+    free(sin);
+    free(causal_mask);
 }

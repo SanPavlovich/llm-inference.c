@@ -9,9 +9,9 @@ Modern ML frameworks (PyTorch, JAX, TensorFlow) are black boxes of comfort. This
 ## 📁 Project Structure
 ```text
 ├── csrc/
-│   ├── ops.c # RMSNorm, Softmax, RoPE, Linear, SwiGLU, LlamaAttention
+│   ├── ops.c # RMSNorm, Softmax, RoPE, Linear, SwiGLU, LlamaAttention, LlamaDecoderLayer, complete Llama forward
 │   ├── run.c # Entry point, generation loop
-│   ├── loader.c # Binary weight loader (custom .bin format)
+│   ├── utils.c # cli parser, binary config/model loader, memory allocation
 │   └── tokenizer.c 
 ├── src/
 │   └── export_weights.py # PyTorch -> Raw Binary converter
@@ -30,8 +30,9 @@ Modern ML frameworks (PyTorch, JAX, TensorFlow) are black boxes of comfort. This
 - ✅ **Linear (MatMul)** — naive triple-loop, verified against `torch.nn.Linear`
 - ✅ **SwiGLU** — `silu(gate) * up` followed by `down_proj`, verified in `swiglu.c`
 - ✅ **LlamaDecoderLayer** — RMSNorm → Attention → Residual → RMSNorm → FFN → Residual
-- 🟡 **Embedding** — RMSNorm → Attention → Residual → RMSNorm → FFN → Residual
-- 🟡 **LlamaForCausalLM** - forward/generate
+- ✅ **Embedding** - pytorch nn.Embedding layer implementation (with memcpy)
+- ✅ **LlamaForCausalLM** - forward
+- 🟡 **LlamaForCausalLM** - generate
 - 🟡 **tokenizer**
 - 🟡 **KV Cache**
 - 🟡 **MultiQueryAttention**
