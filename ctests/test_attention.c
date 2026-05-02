@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "utils.h"
-#include "rope.h"
+#include "ops.h"
 
 
 float dot_product(size_t size, float* array1, float* array2) {

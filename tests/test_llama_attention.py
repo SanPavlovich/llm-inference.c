@@ -63,6 +63,6 @@ if __name__ == "__main__":
     assert torch.allclose(tensor_output, tensor_output_test)
 
     if args.save:
-        abspath = Path().resolve().parent.parent / "data" / "attention" / f"bs_{batch_size}_sl_{seq_len}_ed_{embed_dim}_nh_{num_heads}"
+        abspath = Path().resolve().parent / "data" / "attention" / f"bs_{batch_size}_sl_{seq_len}_ed_{embed_dim}_nh_{num_heads}"
         abspath.mkdir(parents=True, exist_ok=False)
         custom_block(hidden_states, attention_mask=None, verbose=args.verbose, save_path=abspath)

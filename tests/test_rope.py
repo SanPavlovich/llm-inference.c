@@ -81,7 +81,7 @@ if __name__ == "__main__":
         print(f"key   after rotary: {k=}")
 
     if args.save:
-        abspath = Path().resolve().parent.parent / "data" / "rope" / f"bs_{batch_size}_sl_{seq_len}_ed_{embed_dim}_nh_{num_heads}"
+        abspath = Path().resolve().parent / "data" / "rope" / f"bs_{batch_size}_sl_{seq_len}_ed_{embed_dim}_nh_{num_heads}"
         abspath.mkdir(parents=True, exist_ok=False)
         
         # save queries

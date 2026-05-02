@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # PROGRAM="test_rope.py"
-PROGRAM="test_llama_attention.py"
+# PROGRAM="test_llama_attention.py"
+PROGRAM="test_llama_decoder.py"
 BATCH_SIZE="2"
 SEQ_LEN="12"
 EMBED_DIM="8"
